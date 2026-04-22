@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: smart-os
+    runtime: node
+    buildCommand: cd frontend && npm install --include=dev && npx vite build && cd ../backend && npm install --include=dev && npx prisma generate && npx tsc
+    startCommand: cd backend && npx prisma migrate deploy && node dist/index.js
+    envVars:
+      - key: DATABASE_URL
+        value: file:/opt/render/project/src/backend/prisma/prod.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_URL
+        value: https://smart-os.onrender.com
+      - key: NODE_ENV
+        value: production
