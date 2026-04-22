@@ -6,7 +6,8 @@ import { useAuth } from "../context/AuthContext";
 import type { Task, TaskPriority, User } from "../types";
 import { StatusBadge, PriorityBadge } from "../components/StatusBadge";
 import { formatDate, isOverdue, getInitials, getAvatarColor } from "../utils/helpers";
-import { Plus, Search, X, MessageSquare, Calendar } from "lucide-react";
+import { Plus, Search, X, MessageSquare, Calendar, ListTodo } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function Tasks() {
   const { user } = useAuth();
@@ -66,11 +67,12 @@ export default function Tasks() {
       if (newAssignee) data.assigneeId = newAssignee;
       if (newDueDate) data.dueDate = new Date(newDueDate).toISOString();
       await tasksApi.create(data);
+      toast.success("Task created successfully!");
       setShowCreate(false);
       setNewTitle(""); setNewDesc(""); setNewPriority("MEDIUM");
       setNewAssignee(user?.role === "USER" ? user.id : ""); setNewDueDate("");
       loadTasks();
-    } catch {} finally { setCreating(false); }
+    } catch (err: any) { toast.error(err.response?.data?.message || "Failed to create task"); } finally { setCreating(false); }
   };
 
   return (

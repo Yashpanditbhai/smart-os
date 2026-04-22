@@ -7,6 +7,7 @@ import type { Task, ActivityLog, User, TaskStatus } from "../types";
 import { StatusBadge, PriorityBadge } from "../components/StatusBadge";
 import { STATUS_CONFIG, formatDate, formatRelative, isOverdue, getInitials, getAvatarColor } from "../utils/helpers";
 import { ArrowLeft, Send, Clock, Edit2, Trash2, MessageSquare, Activity } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>();
@@ -38,16 +39,16 @@ export default function TaskDetail() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!id) return;
-    try { await tasksApi.updateStatus(id, newStatus); loadTask(); }
-    catch (err: any) { alert(err.response?.data?.message || "Failed"); }
+    try { await tasksApi.updateStatus(id, newStatus); toast.success(`Status updated to ${newStatus.replace(/_/g, " ")}`); loadTask(); }
+    catch (err: any) { toast.error(err.response?.data?.message || "Invalid status transition"); }
   };
 
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !comment.trim()) return;
     setSubmitting(true);
-    try { await tasksApi.addComment(id, comment); setComment(""); loadTask(); }
-    catch {} finally { setSubmitting(false); }
+    try { await tasksApi.addComment(id, comment); toast.success("Comment added"); setComment(""); loadTask(); }
+    catch { toast.error("Failed to add comment"); } finally { setSubmitting(false); }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -55,14 +56,15 @@ export default function TaskDetail() {
     if (!id) return;
     try {
       await tasksApi.update(id, { title: editTitle, description: editDesc, assigneeId: user?.role === "USER" ? user.id : (editAssignee || null) });
+      toast.success("Task updated successfully!");
       setEditing(false); loadTask();
-    } catch (err: any) { alert(err.response?.data?.message || "Failed"); }
+    } catch (err: any) { toast.error(err.response?.data?.message || "Failed to update task"); }
   };
 
   const handleDelete = async () => {
-    if (!id || !confirm("Delete this task?")) return;
-    try { await tasksApi.delete(id); navigate("/tasks"); }
-    catch (err: any) { alert(err.response?.data?.message || "Failed"); }
+    if (!id || !confirm("Are you sure you want to delete this task? This action cannot be undone.")) return;
+    try { await tasksApi.delete(id); toast.success("Task deleted"); navigate("/tasks"); }
+    catch (err: any) { toast.error(err.response?.data?.message || "Failed to delete task"); }
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" /></div>;

@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import type { User, Role } from "../types";
 import { getInitials, getAvatarColor } from "../utils/helpers";
 import { Users, Shield, UserCog, UserIcon } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -16,7 +17,8 @@ export default function UsersPage() {
     try {
       await usersApi.updateRole(userId, role);
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
-    } catch (err: any) { alert(err.response?.data?.message || "Failed"); }
+      toast.success(`Role updated to ${role}`);
+    } catch (err: any) { toast.error(err.response?.data?.message || "Failed to update role"); }
   };
 
   const getRoleBadge = (role: Role) => {
