@@ -5,8 +5,8 @@ import { usersApi } from "../api/users";
 import { useAuth } from "../context/AuthContext";
 import type { Task, ActivityLog, User, TaskStatus } from "../types";
 import { StatusBadge, PriorityBadge } from "../components/StatusBadge";
-import { STATUS_CONFIG, formatDate, formatRelative, isOverdue } from "../utils/helpers";
-import { ArrowLeft, Send, Clock, Edit2, Trash2 } from "lucide-react";
+import { STATUS_CONFIG, formatDate, formatRelative, isOverdue, getInitials, getAvatarColor } from "../utils/helpers";
+import { ArrowLeft, Send, Clock, Edit2, Trash2, MessageSquare, Activity } from "lucide-react";
 
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>();
@@ -26,273 +26,231 @@ export default function TaskDetail() {
   const loadTask = async () => {
     if (!id) return;
     try {
-      const [t, a] = await Promise.all([
-        tasksApi.getById(id),
-        tasksApi.getActivity(id),
-      ]);
-      setTask(t);
-      setActivity(a);
-      setEditTitle(t.title);
-      setEditDesc(t.description || "");
-      setEditAssignee(t.assignee?.id || "");
-    } catch {
-      navigate("/tasks");
-    } finally {
-      setLoading(false);
-    }
+      const [t, a] = await Promise.all([tasksApi.getById(id), tasksApi.getActivity(id)]);
+      setTask(t); setActivity(a);
+      setEditTitle(t.title); setEditDesc(t.description || ""); setEditAssignee(t.assignee?.id || "");
+    } catch { navigate("/tasks"); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { loadTask(); }, [id]);
-
-  useEffect(() => {
-    if (user?.role !== "USER") {
-      usersApi.getAll().then(setUsers).catch(() => {});
-    }
-  }, [user]);
+  useEffect(() => { if (user?.role !== "USER") usersApi.getAll().then(setUsers).catch(() => {}); }, [user]);
 
   const handleStatusChange = async (newStatus: string) => {
     if (!id) return;
-    try {
-      const updated = await tasksApi.updateStatus(id, newStatus);
-      setTask((prev) => prev ? { ...prev, ...updated, comments: prev.comments, availableTransitions: prev.availableTransitions } : null);
-      loadTask();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to update status");
-    }
+    try { await tasksApi.updateStatus(id, newStatus); loadTask(); }
+    catch (err: any) { alert(err.response?.data?.message || "Failed"); }
   };
 
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !comment.trim()) return;
     setSubmitting(true);
-    try {
-      await tasksApi.addComment(id, comment);
-      setComment("");
-      loadTask();
-    } catch {
-      // handle
-    } finally {
-      setSubmitting(false);
-    }
+    try { await tasksApi.addComment(id, comment); setComment(""); loadTask(); }
+    catch {} finally { setSubmitting(false); }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
     try {
-      await tasksApi.update(id, {
-        title: editTitle,
-        description: editDesc,
-        assigneeId: user?.role === "USER" ? user.id : (editAssignee || null),
-      });
-      setEditing(false);
-      loadTask();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to update");
-    }
+      await tasksApi.update(id, { title: editTitle, description: editDesc, assigneeId: user?.role === "USER" ? user.id : (editAssignee || null) });
+      setEditing(false); loadTask();
+    } catch (err: any) { alert(err.response?.data?.message || "Failed"); }
   };
 
   const handleDelete = async () => {
     if (!id || !confirm("Delete this task?")) return;
-    try {
-      await tasksApi.delete(id);
-      navigate("/tasks");
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to delete");
-    }
+    try { await tasksApi.delete(id); navigate("/tasks"); }
+    catch (err: any) { alert(err.response?.data?.message || "Failed"); }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
-    );
-  }
-
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" /></div>;
   if (!task) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <button onClick={() => navigate("/tasks")} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
-        <ArrowLeft size={16} /> Back to tasks
+    <div className="max-w-4xl mx-auto space-y-5">
+      <button onClick={() => navigate("/tasks")} className="flex items-center gap-2 text-[13px] text-slate-400 hover:text-slate-600 font-medium transition-colors">
+        <ArrowLeft size={15} /> Back to tasks
       </button>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            {editing ? (
-              <form onSubmit={handleUpdate} className="space-y-3">
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full text-xl font-bold px-3 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-                <textarea
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                {user?.role === "USER" ? (
-                  <div className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700">
-                    Assigned to: {user.name} (You)
+      {/* Main Card */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-5">
+            <div className="flex-1">
+              {editing ? (
+                <form onSubmit={handleUpdate} className="space-y-3">
+                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full text-lg font-bold px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none" required />
+                  <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={3}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none" />
+                  {user?.role === "USER" ? (
+                    <div className="px-4 py-2.5 border border-slate-100 rounded-xl text-sm bg-slate-50 text-slate-600 font-medium">Assigned to: {user.name} (You)</div>
+                  ) : (
+                    <select value={editAssignee} onChange={(e) => setEditAssignee(e.target.value)}
+                      className="px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white">
+                      <option value="">Unassigned</option>
+                      {users.map((u) => (<option key={u.id} value={u.id}>{u.name}</option>))}
+                    </select>
+                  )}
+                  <div className="flex gap-2">
+                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white text-[13px] rounded-xl font-semibold hover:bg-blue-700">Save</button>
+                    <button type="button" onClick={() => setEditing(false)} className="px-4 py-2 text-[13px] text-slate-500 hover:bg-slate-100 rounded-xl">Cancel</button>
                   </div>
-                ) : (
-                  <select
-                    value={editAssignee}
-                    onChange={(e) => setEditAssignee(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                  >
-                    <option value="">Unassigned</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                )}
-                <div className="flex gap-2">
-                  <button type="submit" className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg">Save</button>
-                  <button type="button" onClick={() => setEditing(false)} className="px-3 py-1.5 text-sm text-gray-600">Cancel</button>
-                </div>
-              </form>
-            ) : (
-              <>
-                <h2 className="text-xl font-bold text-gray-900">{task.title}</h2>
-                {task.description && <p className="text-gray-600 mt-2">{task.description}</p>}
-              </>
-            )}
-          </div>
-          {!editing && (
-            <div className="flex gap-2">
-              <button onClick={() => setEditing(true)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                <Edit2 size={16} />
-              </button>
-              {(user?.role !== "USER" || task.createdBy.id === user?.id) && (
-                <button onClick={handleDelete} className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-gray-100">
-                  <Trash2 size={16} />
-                </button>
+                </form>
+              ) : (
+                <>
+                  <h2 className="text-xl font-bold text-slate-900 mb-2">{task.title}</h2>
+                  {task.description && <p className="text-slate-600 text-[14px] leading-relaxed">{task.description}</p>}
+                </>
               )}
             </div>
-          )}
-        </div>
-
-        {/* Meta info */}
-        <div className="flex flex-wrap gap-4 mb-6 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Status:</span>
-            <StatusBadge status={task.status} />
+            {!editing && (
+              <div className="flex gap-1 ml-4">
+                <button onClick={() => setEditing(true)} className="p-2.5 text-slate-400 hover:text-blue-600 rounded-xl hover:bg-blue-50 transition-all">
+                  <Edit2 size={15} />
+                </button>
+                {(user?.role !== "USER" || task.createdBy.id === user?.id) && (
+                  <button onClick={handleDelete} className="p-2.5 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition-all">
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Priority:</span>
+
+          {/* Meta */}
+          <div className="flex flex-wrap gap-3 mb-5">
+            <StatusBadge status={task.status} />
             <PriorityBadge priority={task.priority} />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Created by:</span>
-            <span className="text-gray-900">{task.createdBy.name}</span>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-50/80 rounded-xl border border-slate-100 mb-5">
+            <div>
+              <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Created by</p>
+              <div className="flex items-center gap-2">
+                <div className={`w-6 h-6 rounded-md ${getAvatarColor(task.createdBy.name)} flex items-center justify-center text-[9px] font-bold text-white`}>
+                  {getInitials(task.createdBy.name)}
+                </div>
+                <span className="text-[13px] font-semibold text-slate-800">{task.createdBy.name}</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Assignee</p>
+              {task.assignee ? (
+                <div className="flex items-center gap-2">
+                  <div className={`w-6 h-6 rounded-md ${getAvatarColor(task.assignee.name)} flex items-center justify-center text-[9px] font-bold text-white`}>
+                    {getInitials(task.assignee.name)}
+                  </div>
+                  <span className="text-[13px] font-semibold text-slate-800">{task.assignee.name}</span>
+                </div>
+              ) : <span className="text-[13px] text-slate-400">Unassigned</span>}
+            </div>
+            {task.dueDate && (
+              <div>
+                <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Due Date</p>
+                <div className="flex items-center gap-1.5">
+                  <Clock size={13} className="text-slate-400" />
+                  <span className={`text-[13px] font-semibold ${isOverdue(task.dueDate) && task.status !== "DONE" ? "text-red-600" : "text-slate-800"}`}>
+                    {formatDate(task.dueDate)}
+                  </span>
+                </div>
+              </div>
+            )}
+            <div>
+              <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Created</p>
+              <span className="text-[13px] font-semibold text-slate-800">{formatDate(task.createdAt)}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Assignee:</span>
-            <span className="text-gray-900">{task.assignee?.name || "Unassigned"}</span>
-          </div>
-          {task.dueDate && (
-            <div className="flex items-center gap-2">
-              <Clock size={14} className="text-gray-400" />
-              <span className={isOverdue(task.dueDate) && task.status !== "DONE" ? "text-red-600 font-medium" : "text-gray-600"}>
-                Due {formatDate(task.dueDate)}
-              </span>
+
+          {/* Status Transitions */}
+          {task.availableTransitions && task.availableTransitions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[12px] text-slate-400 font-semibold">Move to:</span>
+              {task.availableTransitions.map((status) => {
+                const config = STATUS_CONFIG[status as TaskStatus];
+                return (
+                  <button key={status} onClick={() => handleStatusChange(status)}
+                    className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-all hover:shadow-sm ${config.bg} ${config.color}`}>
+                    {config.label}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
-
-        {/* Status Transitions */}
-        {task.availableTransitions && task.availableTransitions.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            <span className="text-sm text-gray-500 py-1">Move to:</span>
-            {task.availableTransitions.map((status) => {
-              const config = STATUS_CONFIG[status as TaskStatus];
-              return (
-                <button
-                  key={status}
-                  onClick={() => handleStatusChange(status)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${config.bg} ${config.color} border-current/20 hover:opacity-80`}
-                >
-                  {config.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Comments */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Comments ({task.comments?.length || 0})</h3>
+      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+          <MessageSquare size={16} className="text-slate-400" />
+          <h3 className="text-[15px] font-bold text-slate-900">Comments</h3>
+          <span className="text-[12px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold">{task.comments?.length || 0}</span>
+        </div>
 
-        <div className="space-y-4 mb-6">
+        <div className="p-6 space-y-4">
           {task.comments?.length === 0 ? (
-            <p className="text-gray-400 text-sm">No comments yet.</p>
+            <p className="text-slate-400 text-sm text-center py-4">No comments yet. Start the conversation.</p>
           ) : (
             task.comments?.map((c) => (
               <div key={c.id} className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600 shrink-0">
-                  {c.user.name[0]}
+                <div className={`w-8 h-8 rounded-lg ${getAvatarColor(c.user.name)} flex items-center justify-center text-[11px] font-bold text-white shrink-0`}>
+                  {getInitials(c.user.name)}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900">{c.user.name}</span>
-                    <span className="text-xs text-gray-400">{formatRelative(c.createdAt)}</span>
+                <div className="flex-1 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[13px] font-semibold text-slate-900">{c.user.name}</span>
+                    <span className="text-[11px] text-slate-400">{formatRelative(c.createdAt)}</span>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{c.content}</p>
+                  <p className="text-[13px] text-slate-600 leading-relaxed">{c.content}</p>
                 </div>
               </div>
             ))
           )}
-        </div>
 
-        <form onSubmit={handleComment} className="flex gap-3">
-          <input
-            type="text"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="Add a comment..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          <button
-            type="submit"
-            disabled={!comment.trim() || submitting}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-          >
-            <Send size={14} />
-            Send
-          </button>
-        </form>
+          <form onSubmit={handleComment} className="flex gap-3 pt-3 border-t border-slate-100">
+            <div className={`w-8 h-8 rounded-lg ${user ? getAvatarColor(user.name) : "bg-slate-300"} flex items-center justify-center text-[11px] font-bold text-white shrink-0`}>
+              {user ? getInitials(user.name) : "?"}
+            </div>
+            <div className="flex-1 flex gap-2">
+              <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Write a comment..."
+                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-[13px] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none" />
+              <button type="submit" disabled={!comment.trim() || submitting}
+                className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-[13px] font-semibold hover:bg-blue-700 disabled:opacity-40 transition-colors flex items-center gap-1.5 shadow-sm">
+                <Send size={13} />
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
       {/* Activity Log */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity</h3>
-        <div className="space-y-3">
+      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+          <Activity size={16} className="text-slate-400" />
+          <h3 className="text-[15px] font-bold text-slate-900">Activity</h3>
+        </div>
+        <div className="p-6">
           {activity.length === 0 ? (
-            <p className="text-gray-400 text-sm">No activity recorded.</p>
+            <p className="text-slate-400 text-sm text-center py-4">No activity recorded.</p>
           ) : (
-            activity.map((log) => (
-              <div key={log.id} className="flex items-center gap-3 text-sm">
-                <div className="w-2 h-2 rounded-full bg-gray-300 shrink-0" />
-                <span className="font-medium text-gray-900">{log.user.name}</span>
-                <span className="text-gray-500">{log.action.replace(/_/g, " ").toLowerCase()}</span>
-                {log.metadata && (() => {
-                  try {
-                    const meta = JSON.parse(log.metadata);
-                    if (meta.from && meta.to) return <span className="text-gray-500">({meta.from} → {meta.to})</span>;
-                  } catch {}
-                  return null;
-                })()}
-                <span className="text-gray-400 ml-auto text-xs">{formatRelative(log.createdAt)}</span>
-              </div>
-            ))
+            <div className="space-y-3">
+              {activity.map((log) => (
+                <div key={log.id} className="flex items-center gap-3 text-[13px] py-1.5">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${
+                    log.action.includes("CREATED") ? "bg-emerald-400" : log.action.includes("STATUS") ? "bg-blue-400" : log.action.includes("DELETED") ? "bg-red-400" : "bg-slate-300"
+                  }`} />
+                  <span className="font-semibold text-slate-800">{log.user.name}</span>
+                  <span className="text-slate-500">{log.action.replace(/_/g, " ").toLowerCase()}</span>
+                  {log.metadata && (() => {
+                    try { const m = JSON.parse(log.metadata); if (m.from && m.to) return <span className="text-slate-400">({m.from} → {m.to})</span>; } catch {} return null;
+                  })()}
+                  <span className="text-slate-400 ml-auto text-[11px] font-medium">{formatRelative(log.createdAt)}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -5,8 +5,8 @@ import { usersApi } from "../api/users";
 import { useAuth } from "../context/AuthContext";
 import type { Task, TaskPriority, User } from "../types";
 import { StatusBadge, PriorityBadge } from "../components/StatusBadge";
-import { formatDate, isOverdue } from "../utils/helpers";
-import { Plus, Search, X } from "lucide-react";
+import { formatDate, isOverdue, getInitials, getAvatarColor } from "../utils/helpers";
+import { Plus, Search, X, MessageSquare, Calendar } from "lucide-react";
 
 export default function Tasks() {
   const { user } = useAuth();
@@ -22,7 +22,6 @@ export default function Tasks() {
   const [showCreate, setShowCreate] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
 
-  // Create form
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newPriority, setNewPriority] = useState<TaskPriority>("MEDIUM");
@@ -41,11 +40,7 @@ export default function Tasks() {
       setTasks(data.tasks);
       setTotal(data.total);
       setTotalPages(data.totalPages);
-    } catch {
-      // handle error
-    } finally {
-      setLoading(false);
-    }
+    } catch {} finally { setLoading(false); }
   };
 
   useEffect(() => { loadTasks(); }, [page, statusFilter, priorityFilter]);
@@ -72,46 +67,40 @@ export default function Tasks() {
       if (newDueDate) data.dueDate = new Date(newDueDate).toISOString();
       await tasksApi.create(data);
       setShowCreate(false);
-      setNewTitle("");
-      setNewDesc("");
-      setNewPriority("MEDIUM");
-      setNewAssignee(user?.role === "USER" ? user.id : "");
-      setNewDueDate("");
+      setNewTitle(""); setNewDesc(""); setNewPriority("MEDIUM");
+      setNewAssignee(user?.role === "USER" ? user.id : ""); setNewDueDate("");
       loadTasks();
-    } catch {
-      // handle error
-    } finally {
-      setCreating(false);
-    }
+    } catch {} finally { setCreating(false); }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-[1400px]">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Tasks</h2>
-          <p className="text-gray-500 mt-1">{total} tasks total</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Tasks</h2>
+          <p className="text-slate-500 text-sm mt-0.5">{total} tasks total</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/15"
         >
-          <Plus size={16} />
-          New Task
+          <Plus size={16} strokeWidth={2.5} />
+          Create Task
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 bg-white rounded-2xl border border-slate-200/80 p-4">
         <form onSubmit={handleSearch} className="flex-1 min-w-[200px]">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search tasks..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-slate-50/50"
             />
           </div>
         </form>
@@ -119,7 +108,7 @@ export default function Tasks() {
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+          className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] bg-slate-50/50 font-medium text-slate-600"
         >
           <option value="">All Statuses</option>
           {["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"].map((s) => (
@@ -130,7 +119,7 @@ export default function Tasks() {
         <select
           value={priorityFilter}
           onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+          className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] bg-slate-50/50 font-medium text-slate-600"
         >
           <option value="">All Priorities</option>
           {["LOW", "MEDIUM", "HIGH", "URGENT"].map((p) => (
@@ -141,85 +130,65 @@ export default function Tasks() {
         {(statusFilter || priorityFilter || search) && (
           <button
             onClick={() => { setStatusFilter(""); setPriorityFilter(""); setSearch(""); setPage(1); }}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+            className="flex items-center gap-1.5 text-[13px] text-slate-400 hover:text-slate-600 font-medium px-2"
           >
-            <X size={14} /> Clear
+            <X size={14} /> Clear filters
           </button>
         )}
       </div>
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create Task</h3>
-            <form onSubmit={handleCreate} className="space-y-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowCreate(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">Create New Task</h3>
+              <p className="text-[13px] text-slate-400 mt-0.5">Fill in the details below</p>
+            </div>
+            <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                <input
-                  type="text"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  required
-                />
+                <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Title *</label>
+                <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-[13px] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none" required placeholder="What needs to be done?" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Description</label>
+                <textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} rows={3}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-[13px] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none" placeholder="Add more details..." />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                  <select
-                    value={newPriority}
-                    onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                  >
-                    {["LOW", "MEDIUM", "HIGH", "URGENT"].map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Priority</label>
+                  <select value={newPriority} onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-[13px] bg-white">
+                    {["LOW", "MEDIUM", "HIGH", "URGENT"].map((p) => (<option key={p} value={p}>{p}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                  <input
-                    type="date"
-                    value={newDueDate}
-                    onChange={(e) => setNewDueDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  />
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Due Date</label>
+                  <input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-[13px]" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Assign To</label>
+                <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Assign To</label>
                 {user?.role === "USER" ? (
-                  <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700">
+                  <div className="w-full px-4 py-2.5 border border-slate-100 rounded-xl text-[13px] bg-slate-50 text-slate-600 font-medium">
                     {user.name} (You)
                   </div>
                 ) : (
-                  <select
-                    value={newAssignee}
-                    onChange={(e) => setNewAssignee(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                  >
+                  <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-[13px] bg-white">
                     <option value="">Unassigned</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                    ))}
+                    {users.map((u) => (<option key={u.id} value={u.id}>{u.name} ({u.role})</option>))}
                   </select>
                 )}
               </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
-                  Cancel
-                </button>
-                <button type="submit" disabled={creating} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50">
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => setShowCreate(false)}
+                  className="px-5 py-2.5 text-[13px] font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                <button type="submit" disabled={creating}
+                  className="px-5 py-2.5 bg-blue-600 text-white text-[13px] rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm">
                   {creating ? "Creating..." : "Create Task"}
                 </button>
               </div>
@@ -231,77 +200,70 @@ export default function Tasks() {
       {/* Task List */}
       {loading ? (
         <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          <div className="w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
         </div>
       ) : tasks.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <p className="text-gray-500">No tasks found.</p>
+        <div className="text-center py-16 bg-white rounded-2xl border border-slate-200/80">
+          <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+            <ListTodo size={24} className="text-slate-400" />
+          </div>
+          <p className="text-slate-500 font-medium">No tasks found</p>
+          <p className="text-slate-400 text-sm mt-1">Try adjusting your filters or create a new task</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Task</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Priority</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Assignee</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Due Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {tasks.map((task) => (
-                  <tr
-                    key={task.id}
-                    onClick={() => navigate(`/tasks/${task.id}`)}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                      {task._count?.comments ? (
-                        <p className="text-xs text-gray-400 mt-0.5">{task._count.comments} comments</p>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
-                    <td className="px-4 py-3"><PriorityBadge priority={task.priority} /></td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {task.assignee?.name || <span className="text-gray-400">Unassigned</span>}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {task.dueDate ? (
-                        <span className={isOverdue(task.dueDate) && task.status !== "DONE" ? "text-red-600 font-medium" : "text-gray-600"}>
-                          {formatDate(task.dueDate)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="space-y-2">
+          {tasks.map((task) => (
+            <div
+              key={task.id}
+              onClick={() => navigate(`/tasks/${task.id}`)}
+              className="bg-white rounded-xl border border-slate-200/80 p-4 hover:border-blue-200 hover:shadow-md cursor-pointer transition-all group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-[14px] font-semibold text-slate-900 group-hover:text-blue-700 transition-colors truncate">{task.title}</h3>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={task.status} />
+                    <PriorityBadge priority={task.priority} />
+                    {task.dueDate && (
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md ${
+                        isOverdue(task.dueDate) && task.status !== "DONE" ? "bg-red-50 text-red-600 border border-red-200" : "bg-slate-50 text-slate-500 border border-slate-200"
+                      }`}>
+                        <Calendar size={10} />
+                        {formatDate(task.dueDate)}
+                      </span>
+                    )}
+                    {task._count?.comments ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                        <MessageSquare size={10} /> {task._count.comments}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {task.assignee ? (
+                    <div className="flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-lg ${getAvatarColor(task.assignee.name)} flex items-center justify-center text-[10px] font-bold text-white`}>
+                        {getInitials(task.assignee.name)}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-slate-300 font-medium bg-slate-50 px-2 py-1 rounded-md">Unassigned</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
 
-          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-              <p className="text-sm text-gray-500">Page {page} of {totalPages}</p>
+            <div className="flex items-center justify-between pt-4">
+              <p className="text-[13px] text-slate-500 font-medium">Page {page} of {totalPages}</p>
               <div className="flex gap-2">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
-                >
-                  Previous
-                </button>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(page + 1)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
-                >
-                  Next
-                </button>
+                <button disabled={page <= 1} onClick={() => setPage(page - 1)}
+                  className="px-4 py-2 text-[13px] font-medium border border-slate-200 rounded-xl disabled:opacity-40 hover:bg-slate-50 transition-colors">Previous</button>
+                <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}
+                  className="px-4 py-2 text-[13px] font-medium border border-slate-200 rounded-xl disabled:opacity-40 hover:bg-slate-50 transition-colors">Next</button>
               </div>
             </div>
           )}

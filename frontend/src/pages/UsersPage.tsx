@@ -2,83 +2,78 @@ import { useEffect, useState } from "react";
 import { usersApi } from "../api/users";
 import { useAuth } from "../context/AuthContext";
 import type { User, Role } from "../types";
+import { getInitials, getAvatarColor } from "../utils/helpers";
+import { Users, Shield, UserCog, UserIcon } from "lucide-react";
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    usersApi.getAll().then(setUsers).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  useEffect(() => { usersApi.getAll().then(setUsers).catch(() => {}).finally(() => setLoading(false)); }, []);
 
   const handleRoleChange = async (userId: string, role: Role) => {
     try {
       await usersApi.updateRole(userId, role);
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to update role");
-    }
+    } catch (err: any) { alert(err.response?.data?.message || "Failed"); }
+  };
+
+  const getRoleBadge = (role: Role) => {
+    const config = {
+      ADMIN: { bg: "bg-violet-50 border-violet-200", text: "text-violet-700", icon: Shield },
+      MANAGER: { bg: "bg-blue-50 border-blue-200", text: "text-blue-700", icon: UserCog },
+      USER: { bg: "bg-slate-50 border-slate-200", text: "text-slate-600", icon: UserIcon },
+    }[role];
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${config.bg} ${config.text}`}>
+        <config.icon size={12} />
+        {role}
+      </span>
+    );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-[1400px]">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Users</h2>
-        <p className="text-gray-500 mt-1">Manage team members and roles</p>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Team</h2>
+        <p className="text-slate-500 text-sm mt-0.5">Manage team members and their roles</p>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          <div className="w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Role</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-700">
-                        {u.name[0]}
-                      </div>
-                      <span className="text-sm font-medium text-gray-900">{u.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{u.email}</td>
-                  <td className="px-4 py-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {users.map((u) => (
+            <div key={u.id} className="bg-white rounded-2xl border border-slate-200/80 p-5 hover:shadow-md transition-all">
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 rounded-xl ${getAvatarColor(u.name)} flex items-center justify-center text-[15px] font-bold text-white shadow-sm`}>
+                  {getInitials(u.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-[14px] font-bold text-slate-900 truncate">{u.name}</h3>
+                  <p className="text-[12px] text-slate-400 truncate mt-0.5">{u.email}</p>
+                  <div className="mt-3">
                     {currentUser?.role === "ADMIN" && u.id !== currentUser.id ? (
                       <select
                         value={u.role}
                         onChange={(e) => handleRoleChange(u.id, e.target.value as Role)}
-                        className="text-sm border border-gray-300 rounded-lg px-2 py-1 bg-white"
+                        className="text-[12px] font-semibold border border-slate-200 rounded-lg px-3 py-1.5 bg-white"
                       >
                         <option value="USER">User</option>
                         <option value="MANAGER">Manager</option>
                         <option value="ADMIN">Admin</option>
                       </select>
                     ) : (
-                      <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                        u.role === "ADMIN" ? "bg-purple-100 text-purple-700" :
-                        u.role === "MANAGER" ? "bg-blue-100 text-blue-700" :
-                        "bg-gray-100 text-gray-700"
-                      }`}>
-                        {u.role}
-                      </span>
+                      getRoleBadge(u.role)
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
