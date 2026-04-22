@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { LayoutDashboard, CheckSquare, Activity, Users, LogOut, Menu, X, Zap } from "lucide-react";
 import { useState } from "react";
 import { getInitials, getAvatarColor } from "../utils/helpers";
+import toast from "react-hot-toast";
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -11,6 +12,7 @@ export default function Layout() {
 
   const handleLogout = () => {
     logout();
+    toast.success("Signed out successfully");
     navigate("/login");
   };
 
@@ -28,19 +30,20 @@ export default function Layout() {
   const avatarColor = user ? getAvatarColor(user.name) : "bg-slate-400";
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] flex">
+    <div className="h-screen overflow-hidden bg-slate-100 flex">
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - ALWAYS fixed, full height, never scrolls with page */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-30 w-[260px] bg-[#0c1e3c] transform transition-transform lg:translate-x-0 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-30 w-[260px] bg-[#0c1e3c] flex flex-col transform transition-transform lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Logo */}
-        <div className="px-5 py-5 flex items-center gap-3">
+        <div className="px-5 py-5 flex items-center gap-3 shrink-0">
           <div className="w-9 h-9 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
             <Zap size={18} className="text-white" />
           </div>
@@ -50,8 +53,8 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 mt-2 space-y-0.5">
+        {/* Nav - scrollable if many items */}
+        <nav className="flex-1 px-3 mt-2 space-y-0.5 overflow-y-auto">
           <p className="px-3 py-2 text-[10px] uppercase tracking-widest text-blue-300/40 font-bold">Main Menu</p>
           {navItems.map((item) => (
             <NavLink
@@ -73,8 +76,8 @@ export default function Layout() {
           ))}
         </nav>
 
-        {/* User section */}
-        <div className="p-3 mt-auto">
+        {/* User section - always at bottom */}
+        <div className="p-3 shrink-0">
           <div className="bg-white/5 rounded-xl p-3">
             <div className="flex items-center gap-3">
               <div className={`w-9 h-9 rounded-lg ${avatarColor} flex items-center justify-center text-[13px] font-bold text-white shadow-sm`}>
@@ -96,9 +99,10 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-slate-200/80 px-5 py-3 lg:hidden flex items-center gap-3 shadow-sm">
+      {/* Main content area - offset by sidebar width on desktop */}
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-[260px]">
+        {/* Mobile header */}
+        <header className="bg-white border-b border-slate-200/80 px-5 py-3 lg:hidden flex items-center gap-3 shadow-sm shrink-0">
           <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-slate-100">
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -107,7 +111,9 @@ export default function Layout() {
             <span className="text-sm font-bold text-slate-800">SmartOS</span>
           </div>
         </header>
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">
+
+        {/* Scrollable content area */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <Outlet />
         </main>
       </div>
