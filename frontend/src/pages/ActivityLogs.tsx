@@ -29,7 +29,7 @@ export default function ActivityLogs() {
   };
 
   return (
-    <div className="space-y-5 max-w-[1400px]">
+    <div className="space-y-5">
       <div>
         <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Activity Log</h2>
         <p className="text-slate-500 text-sm mt-0.5">Complete audit trail of all system actions</p>

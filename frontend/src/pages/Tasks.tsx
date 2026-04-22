@@ -76,7 +76,7 @@ export default function Tasks() {
   };
 
   return (
-    <div className="space-y-5 max-w-[1400px]">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

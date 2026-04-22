@@ -71,7 +71,7 @@ export default function TaskDetail() {
   if (!task) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
+    <div className="space-y-5">
       <button onClick={() => navigate("/tasks")} className="flex items-center gap-2 text-[13px] text-slate-400 hover:text-slate-600 font-medium transition-colors">
         <ArrowLeft size={15} /> Back to tasks
       </button>
